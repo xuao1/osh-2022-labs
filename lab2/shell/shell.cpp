@@ -41,8 +41,8 @@ int main() {
         else {
             // 有管道操作
             int cmdv = cmds.size();
-            int fd[cmdv+3][2];
-            for (int i = 0; i < cmdv-1; i++) {
+            int fd[cmdv + 3][2];
+            for (int i = 0; i < cmdv - 1; i++) {
                 pipe(fd[i]);
             }
             for (int i = 0; i < cmdv; i++) {
@@ -53,8 +53,8 @@ int main() {
                 }
                 else if (pid == 0) {
                     if (i > 0) { // 除了第一个命令，其他命令均要接收来自前一个命令的消息
-                    dup2(fd[i - 1][0], 0);
-                    close(fd[i - 1][1]);
+                        dup2(fd[i - 1][0], 0);
+                        close(fd[i - 1][1]);
                     }
                     if (i < cmdv - 1) {
                         dup2(fd[i][1], 1);
@@ -81,10 +81,42 @@ int exec_cmd(std::string cmd, bool fork_or_not)
 {
     // 按空格分割命令为单词
     std::vector<std::string> args = split(cmd, " ");
- //   for(int i=0;i<args.size();i++) std::cout<<"***"<<args[i]<<"***\n";
-    // 没有可处理的命令
+    //   for(int i=0;i<args.size();i++) std::cout<<"***"<<args[i]<<"***\n";
+       // 没有可处理的命令
     if (args.empty()) {
         return 0;
+    }
+
+    bool redirect = 0;
+    int fd_redirect;
+    for (int i = 0; i < args.size(); i++) {
+        if (args[i] == ">") {
+            int fd_redirect = open(args[i + 1], O_WRONLY);
+            if (fd_redirect == -1) {
+                std::cout << "'>' failed\n";
+                return 0;
+            }
+            dup2(fd_redirect, 1);
+            redirect = 1;
+        }
+        else if (args[i] == ">>") {
+            int fd_redirect = open(args[i + 1], O_WRONLY | O_APPEND);
+            if (fd_redirect == -1) {
+                std::cout << "'>>' failed\n";
+                return 0;
+            }
+            dup2(fd_redirect, 1);
+            redirect = 1;
+        }
+        else if (args[i] == '<') {
+            int fd_redirect = open(args[i + 1], O_RDONLY);
+            if (fd_redirect == -1) {
+                std::cout << "'<' failed\n";
+                return 0;
+            }
+            dup2(fd_redirect, 0);
+            redirect = 1;
+        }
     }
 
 
@@ -176,7 +208,7 @@ int exec_cmd(std::string cmd, bool fork_or_not)
     }
     // exec p 系列的 argv 需要以 nullptr 结尾
     arg_ptrs[args.size()] = nullptr;
-    
+
     // 根据是否需要创建子进程
     if (fork_or_not == 1) {
         // 外部命令
@@ -208,6 +240,11 @@ int exec_cmd(std::string cmd, bool fork_or_not)
         execvp(args[0].c_str(), arg_ptrs);
         exit(255);
     }
+
+    if (redirect == 1) {
+        close(fd);
+    }
+
     return 0;
 }
 
@@ -220,18 +257,18 @@ std::vector<std::string> split(std::string s, const std::string& delimiter) {
     while ((pos = s.find(delimiter)) != std::string::npos) {
         token = s.substr(0, pos);
         bool check_nul = 1;
-        for(int i=0;i<token.length();i++){
-            if(token[i]!=' ') check_nul = 0;
+        for (int i = 0; i < token.length(); i++) {
+            if (token[i] != ' ') check_nul = 0;
         }
- //       std::cout<<token<<"***"<<check_nul<<"*\n";
-        if(check_nul==0) res.push_back(token);
+        //       std::cout<<token<<"***"<<check_nul<<"*\n";
+        if (check_nul == 0) res.push_back(token);
         s = s.substr(pos + delimiter.length());
     }
     bool check_nul = 1;
-    for(int i=0;i<s.length();i++){
-            if(s[i]!=' ') check_nul = 0;
+    for (int i = 0; i < s.length(); i++) {
+        if (s[i] != ' ') check_nul = 0;
     }
-    if(check_nul==0) res.push_back(s);
+    if (check_nul == 0) res.push_back(s);
     return res;
 }
 
