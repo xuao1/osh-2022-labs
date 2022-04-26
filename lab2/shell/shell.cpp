@@ -4,9 +4,9 @@
 #include <string>
 // std::vector
 #include <vector>
-// std::string ×ª int
+// std::string è½¬ int
 #include <sstream>
-// PATH_MAX µÈ³£Á¿
+// PATH_MAX ç­‰å¸¸é‡
 #include <climits>
 // POSIX API
 #include <unistd.h>
@@ -14,32 +14,32 @@
 #include <sys/wait.h>
 
 std::vector<std::string> split(std::string s, const std::string& delimiter);
-int exec_cmd(std::string cmd, bool fork_or_not);// ·µ»ØÖµÎª0£¬ÊÇcontinue;²»È»µÄ»°£¬¾ÍÊÇexit
+int exec_cmd(std::string cmd, bool fork_or_not);// è¿”å›å€¼ä¸º0ï¼Œæ˜¯continue;ä¸ç„¶çš„è¯ï¼Œå°±æ˜¯exit
 
 int main() {
-    // ²»Í¬²½ iostream ºÍ cstdio µÄ buffer
+    // ä¸åŒæ­¥ iostream å’Œ cstdio çš„ buffer
     std::ios::sync_with_stdio(false);
 
-    // ÓÃÀ´´æ´¢¶ÁÈëµÄÒ»ĞĞÃüÁî
+    // ç”¨æ¥å­˜å‚¨è¯»å…¥çš„ä¸€è¡Œå‘½ä»¤
     std::string cmd;
     while (true) {
-        // ´òÓ¡ÌáÊ¾·û
+        // æ‰“å°æç¤ºç¬¦
         std::cout << "# ";
 
-        // ¶ÁÈëÒ»ĞĞ¡£std::getline ½á¹û²»°üº¬»»ĞĞ·û¡£
+        // è¯»å…¥ä¸€è¡Œã€‚std::getline ç»“æœä¸åŒ…å«æ¢è¡Œç¬¦ã€‚
         std::getline(std::cin, cmd);
 
-        // °´ | ·Ö¸î¿ª
-        std::vector<std::string> cmds = split(cmd, " ");
+        // æŒ‰ | åˆ†å‰²å¼€
+        std::vector<std::string> cmds = split(cmd, "|");
 
         if (cmds.size() == 1) {
-            // Ã»ÓĞ¹ÜµÀ²Ù×÷
-            int exec_return = exec_cmd(cmds, 1);
+            // æ²¡æœ‰ç®¡é“æ“ä½œ
+            int exec_return = exec_cmd(cmds[0], 1);
             if (exec_return == 0) continue;
             else return exec_return;
         }
         else {
-            // ÓĞ¹ÜµÀ²Ù×÷
+            // æœ‰ç®¡é“æ“ä½œ
             int cmdv = cmds.size();
             int fd[cmdv+3][2];
             for (int i = 0; i < cmdv-1; i++) {
@@ -52,7 +52,7 @@ int main() {
                     continue;
                 }
                 else if (pid == 0) {
-                    if (i > 0) { // ³ıÁËµÚÒ»¸öÃüÁî£¬ÆäËûÃüÁî¾ùÒª½ÓÊÕÀ´×ÔÇ°Ò»¸öÃüÁîµÄÏûÏ¢
+                    if (i > 0) { // é™¤äº†ç¬¬ä¸€ä¸ªå‘½ä»¤ï¼Œå…¶ä»–å‘½ä»¤å‡è¦æ¥æ”¶æ¥è‡ªå‰ä¸€ä¸ªå‘½ä»¤çš„æ¶ˆæ¯
                     dup2(fd[i - 1][0], 0);
                     close(fd[i - 1][1]);
                     }
@@ -60,7 +60,7 @@ int main() {
                         dup2(fd[i][1], 1);
                         close(fd[i][0]);
                     }
-                    int exec_return = exec_cmd(cmds, 0);// ÕâÀïºÜÖØÒª£¬ÒÑ¾­ÔÚ×Ó½ø³ÌÁË£¬²»ĞèÒªÔÙ´´½¨×Ó½ø³Ì
+                    int exec_return = exec_cmd(cmds[i], 0);// è¿™é‡Œå¾ˆé‡è¦ï¼Œå·²ç»åœ¨å­è¿›ç¨‹äº†ï¼Œä¸éœ€è¦å†åˆ›å»ºå­è¿›ç¨‹
                     if (exec_return == 0) continue;
                     else return exec_return;
                 }
@@ -77,29 +77,28 @@ int main() {
     }
     return 0;
 }
-
 int exec_cmd(std::string cmd, bool fork_or_not)
 {
-    // °´¿Õ¸ñ·Ö¸îÃüÁîÎªµ¥´Ê
+    // æŒ‰ç©ºæ ¼åˆ†å‰²å‘½ä»¤ä¸ºå•è¯
     std::vector<std::string> args = split(cmd, " ");
-
-    // Ã»ÓĞ¿É´¦ÀíµÄÃüÁî
+ //   for(int i=0;i<args.size();i++) std::cout<<"***"<<args[i]<<"***\n";
+    // æ²¡æœ‰å¯å¤„ç†çš„å‘½ä»¤
     if (args.empty()) {
         return 0;
     }
 
 
-    // ¸ü¸Ä¹¤×÷Ä¿Â¼ÎªÄ¿±êÄ¿Â¼
+    // æ›´æ”¹å·¥ä½œç›®å½•ä¸ºç›®æ ‡ç›®å½•
     if (args[0] == "cd") {
         if (args.size() <= 1) {
-            // Êä³öµÄĞÅÏ¢¾¡Á¿ÎªÓ¢ÎÄ£¬·ÇÓ¢ÎÄÊä³ö£¨ÆäÊµÊÇ·Ç ASCII Êä³ö£©ÔÚÃ»ÓĞÌØ±ğÅäÖÃµÄÇé¿öÏÂ£¨ÌØ±ğÊÇ Windows ÏÂ£©»áÂÒÂë
-            // Èç¸ĞĞËÈ¤¿ÉÒÔ×ÔĞĞËÑË÷ GBK Unicode UTF-8 Codepage UTF-16 µÈ½øĞĞÑ§Ï°
+            // è¾“å‡ºçš„ä¿¡æ¯å°½é‡ä¸ºè‹±æ–‡ï¼Œéè‹±æ–‡è¾“å‡ºï¼ˆå…¶å®æ˜¯é ASCII è¾“å‡ºï¼‰åœ¨æ²¡æœ‰ç‰¹åˆ«é…ç½®çš„æƒ…å†µä¸‹ï¼ˆç‰¹åˆ«æ˜¯ Windows ä¸‹ï¼‰ä¼šä¹±ç 
+            // å¦‚æ„Ÿå…´è¶£å¯ä»¥è‡ªè¡Œæœç´¢ GBK Unicode UTF-8 Codepage UTF-16 ç­‰è¿›è¡Œå­¦ä¹ 
             std::cout << "Insufficient arguments\n";
-            // ²»ÒªÓÃ std::endl£¬std::endl = "\n" + fflush(stdout)
+            // ä¸è¦ç”¨ std::endlï¼Œstd::endl = "\n" + fflush(stdout)
             return 0;
         }
 
-        // µ÷ÓÃÏµÍ³ API
+        // è°ƒç”¨ç³»ç»Ÿ API
         int ret = chdir(args[1].c_str());
         if (ret < 0) {
             std::cout << "cd failed\n";
@@ -107,15 +106,15 @@ int exec_cmd(std::string cmd, bool fork_or_not)
         return 0;
     }
 
-    // ÏÔÊ¾µ±Ç°¹¤×÷Ä¿Â¼
+    // æ˜¾ç¤ºå½“å‰å·¥ä½œç›®å½•
     if (args[0] == "pwd") {
         std::string cwd;
 
-        // Ô¤ÏÈ·ÖÅäºÃ¿Õ¼ä
+        // é¢„å…ˆåˆ†é…å¥½ç©ºé—´
         cwd.resize(PATH_MAX);
 
-        // std::string to char *: &s[0]£¨C++17 ÒÔÉÏ¿ÉÒÔÓÃ s.data()£©
-        // std::string ±£Ö¤ÆäÄÚ´æÊÇÁ¬ĞøµÄ
+        // std::string to char *: &s[0]ï¼ˆC++17 ä»¥ä¸Šå¯ä»¥ç”¨ s.data()ï¼‰
+        // std::string ä¿è¯å…¶å†…å­˜æ˜¯è¿ç»­çš„
         const char* ret = getcwd(&cwd[0], PATH_MAX);
         if (ret == nullptr) {
             std::cout << "cmd failed\n";
@@ -126,16 +125,16 @@ int exec_cmd(std::string cmd, bool fork_or_not)
         return 0;
     }
 
-    // ÉèÖÃ»·¾³±äÁ¿
+    // è®¾ç½®ç¯å¢ƒå˜é‡
     if (args[0] == "export") {
         for (auto i = ++args.begin(); i != args.end(); i++) {
             std::string key = *i;
 
-            // std::string Ä¬ÈÏÎª¿Õ
+            // std::string é»˜è®¤ä¸ºç©º
             std::string value;
 
             // std::string::npos = std::string end
-            // std::string ²»ÊÇ nullptr ½áÎ²µÄ£¬µ«È·Êµ»áÓĞÒ»¸ö½áÎ²×Ö·û npos
+            // std::string ä¸æ˜¯ nullptr ç»“å°¾çš„ï¼Œä½†ç¡®å®ä¼šæœ‰ä¸€ä¸ªç»“å°¾å­—ç¬¦ npos
             size_t pos;
             if ((pos = i->find('=')) != std::string::npos) {
                 key = i->substr(0, pos);
@@ -150,18 +149,18 @@ int exec_cmd(std::string cmd, bool fork_or_not)
         return 0;
     }
 
-    // ÍË³ö
+    // é€€å‡º
     if (args[0] == "exit") {
         if (args.size() <= 1) {
             return 1;
         }
 
-        // std::string ×ª int
+        // std::string è½¬ int
         std::stringstream code_stream(args[1]);
         int code = 0;
         code_stream >> code;
 
-        // ×ª»»Ê§°Ü
+        // è½¬æ¢å¤±è´¥
         if (!code_stream.eof() || code_stream.fail()) {
             std::cout << "Invalid exit code\n";
             return 0;
@@ -170,17 +169,17 @@ int exec_cmd(std::string cmd, bool fork_or_not)
         return code;
     }
 
-    // std::vector<std::string> ×ª char **
+    // std::vector<std::string> è½¬ char **
     char* arg_ptrs[args.size() + 1];
     for (auto i = 0; i < args.size(); i++) {
         arg_ptrs[i] = &args[i][0];
     }
-    // exec p ÏµÁĞµÄ argv ĞèÒªÒÔ nullptr ½áÎ²
+    // exec p ç³»åˆ—çš„ argv éœ€è¦ä»¥ nullptr ç»“å°¾
     arg_ptrs[args.size()] = nullptr;
     
-    // ¸ù¾İÊÇ·ñĞèÒª´´½¨×Ó½ø³Ì
+    // æ ¹æ®æ˜¯å¦éœ€è¦åˆ›å»ºå­è¿›ç¨‹
     if (fork_or_not == 1) {
-        // Íâ²¿ÃüÁî
+        // å¤–éƒ¨å‘½ä»¤
         pid_t pid = fork();
 
         if (pid < 0) {
@@ -189,16 +188,16 @@ int exec_cmd(std::string cmd, bool fork_or_not)
         }
 
         if (pid == 0) {
-            // ÕâÀïÖ»ÓĞ×Ó½ø³Ì²Å»á½øÈë
-            // execvp »áÍêÈ«¸ü»»×Ó½ø³Ì½ÓÏÂÀ´µÄ´úÂë£¬ËùÒÔÕı³£Çé¿öÏÂ execvp Ö®ºóÕâÀïµÄ´úÂë¾ÍÃ»ÒâÒåÁË
-            // Èç¹û execvp Ö®ºóµÄ´úÂë±»ÔËĞĞÁË£¬ÄÇ¾ÍÊÇ execvp ³öÎÊÌâÁË
+            // è¿™é‡Œåªæœ‰å­è¿›ç¨‹æ‰ä¼šè¿›å…¥
+            // execvp ä¼šå®Œå…¨æ›´æ¢å­è¿›ç¨‹æ¥ä¸‹æ¥çš„ä»£ç ï¼Œæ‰€ä»¥æ­£å¸¸æƒ…å†µä¸‹ execvp ä¹‹åè¿™é‡Œçš„ä»£ç å°±æ²¡æ„ä¹‰äº†
+            // å¦‚æœ execvp ä¹‹åçš„ä»£ç è¢«è¿è¡Œäº†ï¼Œé‚£å°±æ˜¯ execvp å‡ºé—®é¢˜äº†
             execvp(args[0].c_str(), arg_ptrs);
 
-            // ËùÒÔÕâÀïÖ±½Ó±¨´í
+            // æ‰€ä»¥è¿™é‡Œç›´æ¥æŠ¥é”™
             exit(255);
         }
 
-        // ÕâÀïÖ»ÓĞ¸¸½ø³Ì£¨Ô­½ø³Ì£©²Å»á½øÈë
+        // è¿™é‡Œåªæœ‰çˆ¶è¿›ç¨‹ï¼ˆåŸè¿›ç¨‹ï¼‰æ‰ä¼šè¿›å…¥
         int ret = wait(nullptr);
         if (ret < 0) {
             std::cout << "wait failed";
@@ -212,7 +211,7 @@ int exec_cmd(std::string cmd, bool fork_or_not)
     return 0;
 }
 
-// ¾­µäµÄ cpp string split ÊµÏÖ
+// ç»å…¸çš„ cpp string split å®ç°
 // https://stackoverflow.com/a/14266139/11691878
 std::vector<std::string> split(std::string s, const std::string& delimiter) {
     std::vector<std::string> res;
@@ -220,9 +219,19 @@ std::vector<std::string> split(std::string s, const std::string& delimiter) {
     std::string token;
     while ((pos = s.find(delimiter)) != std::string::npos) {
         token = s.substr(0, pos);
-        res.push_back(token);
+        bool check_nul = 1;
+        for(int i=0;i<token.length();i++){
+            if(token[i]!=' ') check_nul = 0;
+        }
+ //       std::cout<<token<<"***"<<check_nul<<"*\n";
+        if(check_nul==0) res.push_back(token);
         s = s.substr(pos + delimiter.length());
     }
-    res.push_back(s);
+    bool check_nul = 1;
+    for(int i=0;i<s.length();i++){
+            if(s[i]!=' ') check_nul = 0;
+    }
+    if(check_nul==0) res.push_back(s);
     return res;
 }
+
