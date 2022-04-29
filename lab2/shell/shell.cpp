@@ -12,6 +12,7 @@
 #include <unistd.h>
 // wait
 #include <sys/wait.h>
+#include <fcntl.h>
 
 std::vector<std::string> split(std::string s, const std::string& delimiter);
 int exec_cmd(std::string cmd, bool fork_or_not);// 返回值为0，是continue;不然的话，就是exit
@@ -77,6 +78,43 @@ int main() {
     }
     return 0;
 }
+
+int process_redirect(std::vector<std::string> args, int& fd_redirect;)
+{
+    for (int i = 0; i < args.size(); i++) {
+        if (args[i] == ">") {
+            int fd_redirect = open(args[i + 1], O_WRONLY | O_CREAT | O_TRUNC, 0666);
+            if (fd_redirect == -1) {
+                std::cout << "'>' failed\n";
+                return -1;
+            }
+            dup2(fd_redirect, 1);
+            redirect = 1;
+            args.erase(i + 1); args.erase(i);
+        }
+        else if (args[i] == ">>") {
+            int fd_redirect = open(args[i + 1], O_RDWR | O_APPEND | O_CREAT, 0666);
+            if (fd_redirect == -1) {
+                std::cout << "'>>' failed\n";
+                return -1;
+            }
+            dup2(fd_redirect, 1);
+            redirect = 1;
+            args.erase(i + 1); args.erase(i);
+        }
+        else if (args[i] == '<') {
+            int fd_redirect = open(args[i + 1], O_RDONLY);
+            if (fd_redirect == -1) {
+                std::cout << "'<' failed\n";
+                return -1;
+            }
+            dup2(fd_redirect, 0);
+            redirect = 2;
+            args.erase(i + 1); args.erase(i);
+        }
+    }
+}
+
 int exec_cmd(std::string cmd, bool fork_or_not)
 {
     // 按空格分割命令为单词
@@ -87,41 +125,12 @@ int exec_cmd(std::string cmd, bool fork_or_not)
         return 0;
     }
 
-    bool redirect = 0;
-    int fd_redirect;
-    for (int i = 0; i < args.size(); i++) {
-        if (args[i] == ">") {
-            int fd_redirect = open(args[i + 1], O_WRONLY);
-            if (fd_redirect == -1) {
-                std::cout << "'>' failed\n";
-                return 0;
-            }
-            dup2(fd_redirect, 1);
-            redirect = 1;
-        }
-        else if (args[i] == ">>") {
-            int fd_redirect = open(args[i + 1], O_WRONLY | O_APPEND);
-            if (fd_redirect == -1) {
-                std::cout << "'>>' failed\n";
-                return 0;
-            }
-            dup2(fd_redirect, 1);
-            redirect = 1;
-        }
-        else if (args[i] == '<') {
-            int fd_redirect = open(args[i + 1], O_RDONLY);
-            if (fd_redirect == -1) {
-                std::cout << "'<' failed\n";
-                return 0;
-            }
-            dup2(fd_redirect, 0);
-            redirect = 1;
-        }
-    }
-
+    int redirect = 0;
+    int fd_redirect = 0;
 
     // 更改工作目录为目标目录
     if (args[0] == "cd") {
+        redirect = process_redirect(args, fd_redirect);
         if (args.size() <= 1) {
             // 输出的信息尽量为英文，非英文输出（其实是非 ASCII 输出）在没有特别配置的情况下（特别是 Windows 下）会乱码
             // 如感兴趣可以自行搜索 GBK Unicode UTF-8 Codepage UTF-16 等进行学习
@@ -135,11 +144,18 @@ int exec_cmd(std::string cmd, bool fork_or_not)
         if (ret < 0) {
             std::cout << "cd failed\n";
         }
+        if (redirect == 1) {
+            dup2(1, fd_redirect);
+        }
+        else if (redirect == 2) {
+            dup2(0, fd_redirect);
+        }
         return 0;
     }
 
     // 显示当前工作目录
     if (args[0] == "pwd") {
+        redirect = process_redirect(args, fd_redirect);
         std::string cwd;
 
         // 预先分配好空间
@@ -153,6 +169,12 @@ int exec_cmd(std::string cmd, bool fork_or_not)
         }
         else {
             std::cout << ret << "\n";
+        }
+        if (redirect == 1) {
+            dup2(1, fd_redirect);
+        }
+        else if (redirect == 2) {
+            dup2(0, fd_redirect);
         }
         return 0;
     }
@@ -223,6 +245,7 @@ int exec_cmd(std::string cmd, bool fork_or_not)
             // 这里只有子进程才会进入
             // execvp 会完全更换子进程接下来的代码，所以正常情况下 execvp 之后这里的代码就没意义了
             // 如果 execvp 之后的代码被运行了，那就是 execvp 出问题了
+            redirect = process_redirect(args, fd_redirect);
             execvp(args[0].c_str(), arg_ptrs);
 
             // 所以这里直接报错
@@ -237,12 +260,9 @@ int exec_cmd(std::string cmd, bool fork_or_not)
     }
 
     else {
+        redirect = process_redirect(args, fd_redirect);
         execvp(args[0].c_str(), arg_ptrs);
         exit(255);
-    }
-
-    if (redirect == 1) {
-        close(fd);
     }
 
     return 0;
