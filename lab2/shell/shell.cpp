@@ -13,11 +13,8 @@
 // wait
 #include <sys/wait.h>
 #include <fcntl.h>
-<<<<<<< HEAD
 #include <cstring>
 #include <signal.h>
-=======
->>>>>>> d98d1eb4394ce52874debc9d7149211c4f251bcb
 
 std::vector<std::string> split(std::string s, const std::string& delimiter);
 int exec_cmd(std::string cmd, bool fork_or_not);// 返回值为0，是continue;不然的话，就是exit
@@ -26,6 +23,7 @@ int process_redirect(int argc, char** argv, int* fd);
 int execute(int argc, char** argv);
 int exe_in(int argc, char** argv);
 void sig_handler(int signo);
+std::vector<std::string> cmd_record;
 
 int main() {
     // 不同步 iostream 和 cstdio 的 buffer
@@ -40,6 +38,24 @@ int main() {
 
         // 读入一行。std::getline 结果不包含换行符。
         std::getline(std::cin, cmd);
+        cmd_record.push_back(cmd);
+        if(cmd[0] == '!') {//history
+            if (cmd[1] != '!') {
+                std::string cmd_new_tmp = cmd.substr(1);
+                char* cmd_new = &cmd_new_tmp[0];
+                int cmd_new_num = atoi(cmd_new);
+                if (cmd_new_num < cmd_record.size() - 1) {
+                    cmd = cmd_record[cmd_new_num];
+                }
+                else {
+                    std::cout << "error history arguments\n";
+                    continue;
+                }
+            }
+            else {
+                cmd = cmd_record[cmd_record.size()-2];
+            }
+        }
 
         // 按 | 分割开
         std::vector<std::string> cmds = split(cmd, "|");
@@ -90,7 +106,6 @@ int main() {
     return 0;
 }
 
-<<<<<<< HEAD
 int process_redirect(int argc, char** argv, int* fd)
 {
     fd[0] = STDIN_FILENO;
@@ -147,68 +162,25 @@ int execute(int argc, char** argv)
     execvp(argv[0], argv);
     exit(255);
 }
-=======
-int process_redirect(std::vector<std::string> args, int& fd_redirect;)
-{
-    for (int i = 0; i < args.size(); i++) {
-        if (args[i] == ">") {
-            int fd_redirect = open(args[i + 1], O_WRONLY | O_CREAT | O_TRUNC, 0666);
-            if (fd_redirect == -1) {
-                std::cout << "'>' failed\n";
-                return -1;
-            }
-            dup2(fd_redirect, 1);
-            redirect = 1;
-            args.erase(i + 1); args.erase(i);
-        }
-        else if (args[i] == ">>") {
-            int fd_redirect = open(args[i + 1], O_RDWR | O_APPEND | O_CREAT, 0666);
-            if (fd_redirect == -1) {
-                std::cout << "'>>' failed\n";
-                return -1;
-            }
-            dup2(fd_redirect, 1);
-            redirect = 1;
-            args.erase(i + 1); args.erase(i);
-        }
-        else if (args[i] == '<') {
-            int fd_redirect = open(args[i + 1], O_RDONLY);
-            if (fd_redirect == -1) {
-                std::cout << "'<' failed\n";
-                return -1;
-            }
-            dup2(fd_redirect, 0);
-            redirect = 2;
-            args.erase(i + 1); args.erase(i);
-        }
-    }
-}
-
-int exec_cmd(std::string cmd, bool fork_or_not)
-{
-    // 按空格分割命令为单词
-    std::vector<std::string> args = split(cmd, " ");
-    //   for(int i=0;i<args.size();i++) std::cout<<"***"<<args[i]<<"***\n";
-       // 没有可处理的命令
-    if (args.empty()) {
-        return 0;
-    }
-
-    int redirect = 0;
-    int fd_redirect = 0;
->>>>>>> d98d1eb4394ce52874debc9d7149211c4f251bcb
 
 int exe_in(int argc, char** argv)
 {
+    if (std::strcmp(argv[0], "history") == 0) {
+        if (argc <= 1) {
+            std::cout << "Insufficient arguments\n";
+            return 0;
+        }
+        int cmd_num = atoi(argv[1]);
+        int pos = cmd_record.size() - cmd_num;
+        while (pos < cmd_record.size()) {
+            std::cout << pos << " " << cmd_record[pos] << " \n";
+            pos++;
+        }
+        return 0;
+    }
     // 更改工作目录为目标目录
-<<<<<<< HEAD
     if (std::strcmp(argv[0], "cd") == 0) {
         if (argc <= 1) {
-=======
-    if (args[0] == "cd") {
-        redirect = process_redirect(args, fd_redirect);
-        if (args.size() <= 1) {
->>>>>>> d98d1eb4394ce52874debc9d7149211c4f251bcb
             // 输出的信息尽量为英文，非英文输出（其实是非 ASCII 输出）在没有特别配置的情况下（特别是 Windows 下）会乱码
             // 如感兴趣可以自行搜索 GBK Unicode UTF-8 Codepage UTF-16 等进行学习
             std::cout << "Insufficient arguments\n";
@@ -221,22 +193,11 @@ int exe_in(int argc, char** argv)
         if (ret < 0) {
             std::cout << "cd failed\n";
         }
-        if (redirect == 1) {
-            dup2(1, fd_redirect);
-        }
-        else if (redirect == 2) {
-            dup2(0, fd_redirect);
-        }
         return 0;
     }
 
     // 显示当前工作目录
-<<<<<<< HEAD
     if (std::strcmp(argv[0], "pwd") == 0) {
-=======
-    if (args[0] == "pwd") {
-        redirect = process_redirect(args, fd_redirect);
->>>>>>> d98d1eb4394ce52874debc9d7149211c4f251bcb
         std::string cwd;
 
         // 预先分配好空间
@@ -250,12 +211,6 @@ int exe_in(int argc, char** argv)
         }
         else {
             std::cout << ret << "\n";
-        }
-        if (redirect == 1) {
-            dup2(1, fd_redirect);
-        }
-        else if (redirect == 2) {
-            dup2(0, fd_redirect);
         }
         return 0;
     }
@@ -329,16 +284,16 @@ int exec_cmd(std::string cmd, bool fork_or_not)
     arg_ptrs[args.size()] = nullptr;
 
     // 已实现的命令
-    if (args[0] == "cd" || args[0] == "pwd" || args[0] == "export" || args[0] == "exit") {
+    if (args[0] == "cd" || args[0] == "export" || args[0] == "exit" || args[0] == "history") {
         int fd[2];
         fd[0] = STDIN_FILENO;
         fd[1] = STDOUT_FILENO;
         argc = process_redirect(argc, arg_ptrs, fd);
-        dup2(fd[0], STDIN_FILENO);
-        dup2(fd[1], STDOUT_FILENO);
+        //        dup2(fd[0], STDIN_FILENO);
+        //        dup2(fd[1], STDOUT_FILENO);
         int return_code = exe_in(argc, arg_ptrs);
-        dup2(STDIN_FILENO, fd[0]);
-        dup2(STDOUT_FILENO, fd[1]);
+        //        dup2(STDIN_FILENO, fd[0]);
+        //        dup2(STDOUT_FILENO, fd[1]);
         return return_code;
     }
 
@@ -357,14 +312,8 @@ int exec_cmd(std::string cmd, bool fork_or_not)
             // 这里只有子进程才会进入
             // execvp 会完全更换子进程接下来的代码，所以正常情况下 execvp 之后这里的代码就没意义了
             // 如果 execvp 之后的代码被运行了，那就是 execvp 出问题了
-<<<<<<< HEAD
 //            execvp(args[0].c_str(), arg_ptrs);
             execute(argc, arg_ptrs);
-=======
-            redirect = process_redirect(args, fd_redirect);
-            execvp(args[0].c_str(), arg_ptrs);
-
->>>>>>> d98d1eb4394ce52874debc9d7149211c4f251bcb
             // 所以这里直接报错
             exit(255);
         }
@@ -379,13 +328,8 @@ int exec_cmd(std::string cmd, bool fork_or_not)
     }
 
     else {
-<<<<<<< HEAD
         //        execvp(args[0].c_str(), arg_ptrs);
         execute(argc, arg_ptrs);
-=======
-        redirect = process_redirect(args, fd_redirect);
-        execvp(args[0].c_str(), arg_ptrs);
->>>>>>> d98d1eb4394ce52874debc9d7149211c4f251bcb
         exit(255);
     }
 
