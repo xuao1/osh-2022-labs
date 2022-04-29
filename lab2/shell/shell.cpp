@@ -12,9 +12,17 @@
 #include <unistd.h>
 // wait
 #include <sys/wait.h>
+#include <fcntl.h>
+#include <cstring>
+#include <signal.h>
 
 std::vector<std::string> split(std::string s, const std::string& delimiter);
 int exec_cmd(std::string cmd, bool fork_or_not);// 返回值为0，是continue;不然的话，就是exit
+int process_redirect(std::vector<std::string> args, int& fd_redirect);
+int process_redirect(int argc, char** argv, int* fd);
+int execute(int argc, char** argv);
+int exe_in(int argc, char** argv);
+void sig_handler(int signo);
 
 int main() {
     // 不同步 iostream 和 cstdio 的 buffer
@@ -22,6 +30,7 @@ int main() {
 
     // 用来存储读入的一行命令
     std::string cmd;
+    signal(SIGINT, sig_handler);
     while (true) {
         // 打印提示符
         std::cout << "# ";
@@ -77,52 +86,69 @@ int main() {
     }
     return 0;
 }
-int exec_cmd(std::string cmd, bool fork_or_not)
+
+int process_redirect(int argc, char** argv, int* fd)
 {
-    // 按空格分割命令为单词
-    std::vector<std::string> args = split(cmd, " ");
-    //   for(int i=0;i<args.size();i++) std::cout<<"***"<<args[i]<<"***\n";
-       // 没有可处理的命令
-    if (args.empty()) {
-        return 0;
+    fd[0] = STDIN_FILENO;
+    fd[1] = STDOUT_FILENO;
+    int i = 0, j = 0;
+    while (i < argc) {
+        int tfd;
+        if (std::strcmp(argv[i], ">") == 0) {
+            tfd = open(argv[i + 1], O_WRONLY | O_CREAT | O_TRUNC, 0666);
+            if (tfd < 0) {
+                std::cout << "open error\n";
+            }
+            else {
+                fd[1] = tfd;
+            }
+            i += 2;
+        }
+        else if (std::strcmp(argv[i], ">>") == 0) {
+            tfd = open(argv[i + 1], O_RDWR | O_APPEND | O_CREAT, 0666);
+            if (tfd < 0) {
+                std::cout << "open error\n";
+            }
+            else {
+                fd[1] = tfd;
+            }
+            i += 2;
+        }
+        else if (std::strcmp(argv[i], "<") == 0) {
+            tfd = open(argv[i + 1], O_RDONLY);
+            if (tfd < 0) {
+                std::cout << "open error\n";
+            }
+            else {
+                fd[0] = tfd;
+            }
+            i += 2;
+        }
+        else {
+            argv[j++] = argv[i++];
+        }
     }
+    argv[j] = nullptr;
+    return j;
+}
 
-    bool redirect = 0;
-    int fd_redirect;
-    for (int i = 0; i < args.size(); i++) {
-        if (args[i] == ">") {
-            int fd_redirect = open(args[i + 1], O_WRONLY);
-            if (fd_redirect == -1) {
-                std::cout << "'>' failed\n";
-                return 0;
-            }
-            dup2(fd_redirect, 1);
-            redirect = 1;
-        }
-        else if (args[i] == ">>") {
-            int fd_redirect = open(args[i + 1], O_WRONLY | O_APPEND);
-            if (fd_redirect == -1) {
-                std::cout << "'>>' failed\n";
-                return 0;
-            }
-            dup2(fd_redirect, 1);
-            redirect = 1;
-        }
-        else if (args[i] == '<') {
-            int fd_redirect = open(args[i + 1], O_RDONLY);
-            if (fd_redirect == -1) {
-                std::cout << "'<' failed\n";
-                return 0;
-            }
-            dup2(fd_redirect, 0);
-            redirect = 1;
-        }
-    }
+int execute(int argc, char** argv)
+{
+    int fd[2];
+    fd[0] = STDIN_FILENO;
+    fd[1] = STDOUT_FILENO;
+    argc = process_redirect(argc, argv, fd);
+    dup2(fd[0], STDIN_FILENO);
+    dup2(fd[1], STDOUT_FILENO);
+    execvp(argv[0], argv);
+    exit(255);
+}
 
-
+int exe_in(int argc, char** argv)
+{
     // 更改工作目录为目标目录
-    if (args[0] == "cd") {
-        if (args.size() <= 1) {
+    if (std::strcmp(argv[0], "cd") == 0) {
+        if (argc <= 1) {
             // 输出的信息尽量为英文，非英文输出（其实是非 ASCII 输出）在没有特别配置的情况下（特别是 Windows 下）会乱码
             // 如感兴趣可以自行搜索 GBK Unicode UTF-8 Codepage UTF-16 等进行学习
             std::cout << "Insufficient arguments\n";
@@ -131,7 +157,7 @@ int exec_cmd(std::string cmd, bool fork_or_not)
         }
 
         // 调用系统 API
-        int ret = chdir(args[1].c_str());
+        int ret = chdir(argv[1]);
         if (ret < 0) {
             std::cout << "cd failed\n";
         }
@@ -139,7 +165,7 @@ int exec_cmd(std::string cmd, bool fork_or_not)
     }
 
     // 显示当前工作目录
-    if (args[0] == "pwd") {
+    if (std::strcmp(argv[0], "pwd") == 0) {
         std::string cwd;
 
         // 预先分配好空间
@@ -158,21 +184,24 @@ int exec_cmd(std::string cmd, bool fork_or_not)
     }
 
     // 设置环境变量
-    if (args[0] == "export") {
-        for (auto i = ++args.begin(); i != args.end(); i++) {
-            std::string key = *i;
-
+    if (std::strcmp(argv[0], "export") == 0) {
+        for (int i = 1; i < argc; i++) {
+            std::string key;
             // std::string 默认为空
             std::string value;
 
             // std::string::npos = std::string end
             // std::string 不是 nullptr 结尾的，但确实会有一个结尾字符 npos
-            size_t pos;
-            if ((pos = i->find('=')) != std::string::npos) {
-                key = i->substr(0, pos);
-                value = i->substr(pos + 1);
-            }
-
+            int pos = -1;
+            for (int k = 0; k < strlen(argv[i]); k++)
+                if (argv[i][k] == '=') {
+                    pos = k;
+                    break;
+                }
+            if (pos == -1) continue;
+            std::string s = argv[i];
+            key = s.substr(0, pos);
+            value = s.substr(pos + 1);
             int ret = setenv(key.c_str(), value.c_str(), 1);
             if (ret < 0) {
                 std::cout << "export failed\n";
@@ -181,14 +210,15 @@ int exec_cmd(std::string cmd, bool fork_or_not)
         return 0;
     }
 
+
     // 退出
-    if (args[0] == "exit") {
-        if (args.size() <= 1) {
+    if (std::strcmp(argv[0], "exit") == 0) {
+        if (argc <= 1) {
             return 1;
         }
 
         // std::string 转 int
-        std::stringstream code_stream(args[1]);
+        std::stringstream code_stream(argv[1]);
         int code = 0;
         code_stream >> code;
 
@@ -200,18 +230,45 @@ int exec_cmd(std::string cmd, bool fork_or_not)
 
         return code;
     }
+}
+
+int exec_cmd(std::string cmd, bool fork_or_not)
+{
+    // 按空格分割命令为单词
+    std::vector<std::string> args = split(cmd, " ");
+    //   for(int i=0;i<args.size();i++) std::cout<<"***"<<args[i]<<"***\n";
+       // 没有可处理的命令
+    if (args.empty()) {
+        return 0;
+    }
 
     // std::vector<std::string> 转 char **
     char* arg_ptrs[args.size() + 1];
     for (auto i = 0; i < args.size(); i++) {
         arg_ptrs[i] = &args[i][0];
     }
+    int argc = args.size();
     // exec p 系列的 argv 需要以 nullptr 结尾
     arg_ptrs[args.size()] = nullptr;
+
+    // 已实现的命令
+    if (args[0] == "cd" || args[0] == "pwd" || args[0] == "export" || args[0] == "exit") {
+        int fd[2];
+        fd[0] = STDIN_FILENO;
+        fd[1] = STDOUT_FILENO;
+        argc = process_redirect(argc, arg_ptrs, fd);
+        dup2(fd[0], STDIN_FILENO);
+        dup2(fd[1], STDOUT_FILENO);
+        int return_code = exe_in(argc, arg_ptrs);
+        dup2(STDIN_FILENO, fd[0]);
+        dup2(STDOUT_FILENO, fd[1]);
+        return return_code;
+    }
 
     // 根据是否需要创建子进程
     if (fork_or_not == 1) {
         // 外部命令
+        signal(SIGINT, sig_handler);
         pid_t pid = fork();
 
         if (pid < 0) {
@@ -223,26 +280,25 @@ int exec_cmd(std::string cmd, bool fork_or_not)
             // 这里只有子进程才会进入
             // execvp 会完全更换子进程接下来的代码，所以正常情况下 execvp 之后这里的代码就没意义了
             // 如果 execvp 之后的代码被运行了，那就是 execvp 出问题了
-            execvp(args[0].c_str(), arg_ptrs);
-
+//            execvp(args[0].c_str(), arg_ptrs);
+            execute(argc, arg_ptrs);
             // 所以这里直接报错
             exit(255);
         }
 
         // 这里只有父进程（原进程）才会进入
+        signal(SIGINT, SIG_IGN);
         int ret = wait(nullptr);
+        signal(SIGINT, sig_handler);
         if (ret < 0) {
             std::cout << "wait failed";
         }
     }
 
     else {
-        execvp(args[0].c_str(), arg_ptrs);
+        //        execvp(args[0].c_str(), arg_ptrs);
+        execute(argc, arg_ptrs);
         exit(255);
-    }
-
-    if (redirect == 1) {
-        close(fd);
     }
 
     return 0;
@@ -272,3 +328,8 @@ std::vector<std::string> split(std::string s, const std::string& delimiter) {
     return res;
 }
 
+void sig_handler(int signo)
+{
+    if (signo == SIGINT)
+        return;
+}
