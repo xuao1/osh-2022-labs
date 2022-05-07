@@ -183,17 +183,38 @@ int exe_in(int argc, char** argv)
 {
     if (std::strcmp(argv[0], "history") == 0) {
         int cmd_num;
-	if (argc <= 1) {
-            cmd_num = cmd_record.size();
-        }
-	else cmd_num = atoi(argv[1]);
-        int pos = cmd_record.size() - cmd_num;
-        while (pos < cmd_record.size()) {
-            std::cout << pos << " " << cmd_record[pos] << " \n";
-            pos++;
-        }
+	    if (argc <= 1) {
+                cmd_num = cmd_record.size();
+            }
+	    else cmd_num = atoi(argv[1]);
+            int pos = cmd_record.size() - cmd_num;
+            while (pos < cmd_record.size()) {
+                std::cout << pos << " " << cmd_record[pos] << " \n";
+                pos++;
+            }
         return 0;
     }
+
+    if (std::strcmp(argv[0], "echo") == 0 && argc >=2 && argv[1][0]=='~') {
+        std::string s = argv[1];
+        std::string USER = s.substr(1);
+
+        std::string user_passwd;
+
+        std::ifstream inFile("/etc/passwd", std::ios::in | std::ios::binary);
+        while (getline(inFile, user_passwd)) {
+            if (user_passwd.find(USER) == std::string::npos) continue;
+            int pos_begin = user_passwd.find('/');
+            int pos_end = user_passwd.find(':',pos_begin);
+            std::cout << user_passwd.substr(pos_begin, pos_end - pos_begin)<<" \n";
+            inFile.close();
+            return 0;
+        }
+        std::cout << argv[1] << " \n";
+        return 0;
+
+    }
+
     // 更改工作目录为目标目录
     if (std::strcmp(argv[0], "cd") == 0) {
         if (argc <= 1) {
@@ -300,7 +321,7 @@ int exec_cmd(std::string cmd, bool fork_or_not)
     arg_ptrs[args.size()] = nullptr;
 
     // 已实现的命令
-    if (args[0] == "cd" || args[0] == "export" || args[0] == "exit" || args[0] == "history") {
+    if (args[0] == "cd" || args[0] == "export" || args[0] == "exit" || args[0] == "history" || (args[0] == "echo" && args.size() >= 2 && args[1][0] == '~')) {
         int fd[2];
         fd[0] = STDIN_FILENO;
         fd[1] = STDOUT_FILENO;
