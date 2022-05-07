@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
             pid_t child_waited = waitpid(-1, &status, __WALL);//等待接收信号
             if (WIFEXITED(status))
             { //线程结束时，收到的信号
-                fprintf(stderr, "\nthread %d exited with status %d\t\n", child_waited, WEXITSTATUS(status));
+                //fprintf(stderr, "\nthread %d exited with status %d\t\n", child_waited, WEXITSTATUS(status));
                 break;
             }
 
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
 		{
                     if (ptrace(PTRACE_GETEVENTMSG, child_waited, 0, &new_pid) != -1)
                     {
-                        fprintf(stderr, "thread %d created\n", new_pid);
+                        //fprintf(stderr, "thread %d created\n", new_pid);
                     }
 
                 }
@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 
             if (WIFEXITED(status))
             { //线程结束时，收到的信号
-                fprintf(stderr, "\nthread %d exited with status %d\t\n", child_waited, WEXITSTATUS(status));
+                //fprintf(stderr, "\nthread %d exited with status %d\t\n", child_waited, WEXITSTATUS(status));
                 break;
             }
 
@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
             waitpid(child_pid, &status, 0);
             if (WIFEXITED(status))
             { //线程结束时，收到的信号
-                fprintf(stderr, "\nthread %d exited with status %d\t\n", child_waited, WEXITSTATUS(status));
+                //fprintf(stderr, "\nthread %d exited with status %d\t\n", child_waited, WEXITSTATUS(status));
                 break;
             }
 
