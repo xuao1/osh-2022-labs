@@ -12,5 +12,4 @@
 
 ### TOBEDONE
 
-+ history 加入文件保存
 + tiny starce 无法打印 execl 那一行

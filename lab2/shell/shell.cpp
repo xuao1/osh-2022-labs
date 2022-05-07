@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <cstring>
 #include <signal.h>
+#include <fstream>
 
 std::vector<std::string> split(std::string s, const std::string& delimiter);
 int exec_cmd(std::string cmd, bool fork_or_not);// 返回值为0，是continue;不然的话，就是exit
@@ -32,12 +33,24 @@ int main() {
     // 用来存储读入的一行命令
     std::string cmd;
     signal(SIGINT, sig_handler);
+
+    std::ifstream inFile("shistory.txt", std::ios::in | std::ios::binary);
+    while (getline(inFile,cmd)) {
+        cmd_record.push_back(cmd);
+    }
+    inFile.close();
+
     while (true) {
         // 打印提示符
         std::cout << "# ";
 
         // 读入一行。std::getline 结果不包含换行符。
-        std::getline(std::cin, cmd);
+        std::getline(std::cin, cmd);;
+
+	std::ofstream outFile("shistory.txt", std::ios::app | std::ios::binary);
+	outFile << cmd << '\n';
+	outFile.close();
+
         cmd_record.push_back(cmd);
         if(cmd[0] == '!') {//history
             if (cmd[1] != '!') {
@@ -166,11 +179,11 @@ int execute(int argc, char** argv)
 int exe_in(int argc, char** argv)
 {
     if (std::strcmp(argv[0], "history") == 0) {
-        if (argc <= 1) {
-            std::cout << "Insufficient arguments\n";
-            return 0;
+        int cmd_num;
+	if (argc <= 1) {
+            cmd_num = cmd_record.size();
         }
-        int cmd_num = atoi(argv[1]);
+	else cmd_num = atoi(argv[1]);
         int pos = cmd_record.size() - cmd_num;
         while (pos < cmd_record.size()) {
             std::cout << pos << " " << cmd_record[pos] << " \n";
