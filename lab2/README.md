@@ -8,3 +8,9 @@
 
 提供了一个测试程序 text.cpp，这里面包含了 fork
 
+
+
+### TOBEDONE
+
++ history 加入文件保存
++ tiny starce 无法打印 execl 那一行
