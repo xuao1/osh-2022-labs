@@ -45,7 +45,10 @@ int main() {
         std::cout << "# ";
 
         // 读入一行。std::getline 结果不包含换行符。
-        std::getline(std::cin, cmd);;
+        if(!std::getline(std::cin, cmd)){
+	    std::cout<<"\n";
+	    return 0;
+	}
 
 	std::ofstream outFile("shistory.txt", std::ios::app | std::ios::binary);
 	outFile << cmd << '\n';
