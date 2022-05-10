@@ -4,11 +4,8 @@
 
 ### 附加项
 
++ history 历史命令持久化，新打开的 shell 能够显示和使用之前保留的记录
 + 实现了 `ctrl+D`
 + 实现了 `echo ~root` ，以及查看其他用户的主目录，如果这个用户不存在，则 `echo`  会原样输出你输入的内容
 
 
-
-### TOBEDONE
-
-+ tiny starce 无法打印 execl 那一行

@@ -48,11 +48,11 @@ int main() {
         if(!std::getline(std::cin, cmd)){
 	    std::cout<<"\n";
 	    return 0;
-	}
+	    }
 
-	std::ofstream outFile("shistory.txt", std::ios::app | std::ios::binary);
-	outFile << cmd << '\n';
-	outFile.close();
+	    std::ofstream outFile("shistory.txt", std::ios::app | std::ios::binary);
+	    outFile << cmd << '\n';
+	    outFile.close();
 
         cmd_record.push_back(cmd);
         if(cmd[0] == '!') {//history
