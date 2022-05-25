@@ -130,7 +130,7 @@ int main(int argc, char** argv)
         perror("bind");
         return 1;
     }
-    if (listen(fd, 2)) {
+    if (listen(fd, Max_Client)) {
         perror("listen");
         return 1;
     }
