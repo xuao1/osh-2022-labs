@@ -46,8 +46,10 @@ void* handle_recv(void* data)
         }
         ssize_t len;
         char msg_tobesend[2*ONE_MB]; // 累计的信息
+        char msg_tobesend2[2 * ONE_MB];
         memset(msg_tobesend, '\0', 2*ONE_MB);
         char msg_recv[ONE_MB + 500]; // recv 到的信息
+        memset(msg_recv, '\0', ONE_MB);
         char one_msg[ONE_MB + 500] = "Message:";  // 准备 send 的一条信息
         while (len = recv(fd1, msg_recv, Max_Client, 0) > 0) { // 正常接收数据
             int len_mts = strlen(msg_tobesend);
@@ -59,6 +61,8 @@ void* handle_recv(void* data)
                 if (msg_tobesend[i] == '\n') {
                     // 划分消息，此回车之前的消息被发送
                     int index;
+                    memset(one_msg, '\0', ONE_MB);
+                    strcpy(one_msg, "Message:");
                     for (index = 0; index <= i; index++) {
                         one_msg[index + 8] = msg_tobesend[index];
                     }
@@ -75,12 +79,18 @@ void* handle_recv(void* data)
                     }
 
                     int tmp = i;
-                    for (int j = 0; j + tmp + 1 <= strlen(msg_tobesend); j++) {
-                        msg_tobesend[j] = msg_tobesend[j + i + 1];
+                    memset(msg_tobesend2, '\0', 2 * ONE_MB);
+                    for (int k = 0; k + tmp + 1 <= strlen(msg_tobesend); k++) {
+                        msg_tobesend2[k] = msg_tobesend[k + i + 1];
+                    }
+                    memset(msg_tobesend, '\0', 2 * ONE_MB);
+                    for (int k = 0; k <= strlen(msg_tobesend2); k++) {
+                        msg_tobesend[k] = msg_tobesend2[k];
                     }
                     i = -1;
                 }
             }
+            memset(msg_recv, '\0', ONE_MB);
         }
         if (len <= 0) { // recv 出错或者连接关闭
             Clients[k].client_fd = 0;
@@ -98,14 +108,20 @@ void* handle_send(void* data)
         } // 生产者消费者问题
         // 继续向下进行，说明有消息待发送
         char one_msg[1050000];  // 准备 send 的一条信息
+        char one_msg2[1050000];
         memset(one_msg, '\0', ONE_MB);
         strcpy(one_msg, c->send_queue.front());
         c->send_queue.pop();
         pthread_mutex_unlock(&c->send_mutex);
         int send_len = send(c->client_fd, one_msg, strlen(one_msg), 0);
         while (send_len != strlen(one_msg)) {
+            memset(one_msg2, '\0', ONE_MB);
             for (int k = 0; k + send_len <= strlen(one_msg); k++) {
-                one_msg[k] = one_msg[k + send_len];
+                one_msg2[k] = one_msg[k + send_len];
+            }
+            memset(one_msg, '\0', ONE_MB);
+            for (int k = 0; k <= strlen(one_msg2); k++) {
+                one_msg[k] = one_msg2[k];
             }
             send_len = send(c->client_fd, one_msg, strlen(one_msg), 0);
         }
