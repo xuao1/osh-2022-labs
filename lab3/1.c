@@ -13,12 +13,15 @@ struct Pipe {
     int fd_recv;
 };
 
-void *handle_chat(void *data) {
-    struct Pipe *pipe = (struct Pipe *)data;
+void* handle_chat(void* data) {
+    struct Pipe* pipe = (struct Pipe*)data;
     char msg_tobesend[2100000]; // 累计的信息
-    memset(msg_tobesend, '\0', ONE_MB);
+    char msg_tobesend2[2100000];
+    memset(msg_tobesend, '\0', 2 * ONE_MB);
     char buffer[1050000];   // 每次 recv 接受到的信息
+    memset(buffer, '\0', ONE_MB);
     char one_msg[1050000] = "Message:";  // 准备 send 的一条信息
+    char one_msg2[1050000];
     ssize_t len;
     // 接受消息可能需要多次，发送消息是以回车为划分依据
     // 如果一次接收到的消息过长，会被截断，那么下一次 recv 读入的消息应该拼接到上次没传完的消息后
@@ -32,30 +35,64 @@ void *handle_chat(void *data) {
             if (msg_tobesend[i] == '\n') {
                 // 划分消息，此回车之前的消息被发送
                 int j;
+                memset(one_msg, '\0', ONE_MB);
+                strcpy(one_msg, "Message:");
                 for (j = 0; j <= i; j++) {
                     one_msg[j + 8] = msg_tobesend[j];
                 }
-                one_msg[j+8] = '\0';
+                one_msg[j + 8] = '\0';
+                printf("%s", one_msg);
                 // 发送消息，如果一次发不全，则多次发送
                 int send_len = send(pipe->fd_recv, one_msg, strlen(one_msg), 0);
                 while (send_len != strlen(one_msg)) {
+                    memset(one_msg2, '\0', ONE_MB);
                     for (int k = 0; k + send_len <= strlen(one_msg); k++) {
-                        one_msg[k] = one_msg[k + send_len];
+                        one_msg2[k] = one_msg[k + send_len];
+                    }
+                    memset(one_msg, '\0', ONE_MB);
+                    for (int k = 0; k <= strlen(one_msg2); k++) {
+                        one_msg[k] = one_msg2[k];
                     }
                     send_len = send(pipe->fd_recv, one_msg, strlen(one_msg), 0);
                 }
                 int tmp = i;
+                memset(msg_tobesend2, '\0', 2 * ONE_MB);
                 for (int k = 0; k + tmp + 1 <= strlen(msg_tobesend); k++) {
-                    msg_tobesend[k] = msg_tobesend[k + i + 1];
+                    msg_tobesend2[k] = msg_tobesend[k + i + 1];
+                }
+                memset(msg_tobesend, '\0', 2 * ONE_MB);
+                for (int k = 0; k <= strlen(msg_tobesend2); k++) {
+                    msg_tobesend[k] = msg_tobesend2[k];
                 }
                 i = -1;
             }
         }
+        if (strlen(msg_tobesend) > ONE_MB) { // 消息长度超过 1 MB 且中间没有回车，则直接进行发送
+            memset(one_msg, '\0', ONE_MB);
+            strcpy(one_msg, "Message:");
+            for (int j = 0; j <= strlen(msg_tobesend); j++) {
+                one_msg[j + 8] = msg_tobesend[j];
+            }
+            int send_len = send(pipe->fd_recv, one_msg, strlen(one_msg), 0);
+            while (send_len != strlen(one_msg)) {
+                memset(one_msg2, '\0', ONE_MB);
+                for (int k = 0; k + send_len <= strlen(one_msg); k++) {
+                    one_msg2[k] = one_msg[k + send_len];
+                }
+                memset(one_msg, '\0', ONE_MB);
+                for (int k = 0; k <= strlen(one_msg2); k++) {
+                    one_msg[k] = one_msg2[k];
+                }
+                send_len = send(pipe->fd_recv, one_msg, strlen(one_msg), 0);
+            }
+            memset(msg_tobesend, '\0', 2 * ONE_MB);
+        }
+        memset(buffer, '\0', ONE_MB);
     }
     return NULL;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     int port = atoi(argv[1]);
     int fd;
     if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -67,7 +104,7 @@ int main(int argc, char **argv) {
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
     socklen_t addr_len = sizeof(addr);
-    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr))) {
+    if (bind(fd, (struct sockaddr*)&addr, sizeof(addr))) {
         perror("bind");
         return 1;
     }
@@ -88,8 +125,8 @@ int main(int argc, char **argv) {
     pipe1.fd_recv = fd2;
     pipe2.fd_send = fd2;
     pipe2.fd_recv = fd1;
-    pthread_create(&thread1, NULL, handle_chat, (void *)&pipe1);
-    pthread_create(&thread2, NULL, handle_chat, (void *)&pipe2);
+    pthread_create(&thread1, NULL, handle_chat, (void*)&pipe1);
+    pthread_create(&thread2, NULL, handle_chat, (void*)&pipe2);
     pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);
     return 0;
