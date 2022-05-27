@@ -51,7 +51,7 @@ void* handle_recv(void* data)
         char msg_recv[ONE_MB + 500]; // recv 到的信息
         memset(msg_recv, '\0', ONE_MB);
         char one_msg[ONE_MB + 500] = "Message:";  // 准备 send 的一条信息
-        while (len = recv(fd1, msg_recv, Max_Client, 0) > 0) { // 正常接收数据
+        while (len = recv(fd1, msg_recv, ONE_MB, 0) > 0) { // 正常接收数据
             int len_mts = strlen(msg_tobesend);
             for (int i = 0; i <= strlen(msg_recv); i++) {
                 msg_tobesend[len_mts] = msg_recv[i];
