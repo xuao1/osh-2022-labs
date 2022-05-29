@@ -9,6 +9,7 @@
 
 #define ONE_MB 1048576  
 #define Max_Client 32
+#define LEN_BUF 10240
 
 using namespace std;
 
@@ -48,10 +49,10 @@ void* handle_recv(void* data)
         char msg_tobesend[2*ONE_MB]; // 累计的信息
         char msg_tobesend2[2 * ONE_MB];
         memset(msg_tobesend, '\0', 2*ONE_MB);
-        char msg_recv[ONE_MB + 500]; // recv 到的信息
-        memset(msg_recv, '\0', ONE_MB);
+        char msg_recv[LEN_BUF + 500]; // recv 到的信息
+        memset(msg_recv, '\0', LEN_BUF);
         char one_msg[ONE_MB + 500] = "Message:";  // 准备 send 的一条信息
-        while (len = recv(fd1, msg_recv, ONE_MB, 0) > 0) { // 正常接收数据
+        while (len = recv(fd1, msg_recv, LEN_BUF, 0) > 0) { // 正常接收数据
             int len_mts = strlen(msg_tobesend);
             for (int i = 0; i <= strlen(msg_recv); i++) {
                 msg_tobesend[len_mts] = msg_recv[i];
@@ -90,7 +91,7 @@ void* handle_recv(void* data)
                     i = -1;
                 }
             }
-            memset(msg_recv, '\0', ONE_MB);
+            memset(msg_recv, '\0', LEN_BUF);
         }
         if (len <= 0) { // recv 出错或者连接关闭
             Clients[k].client_fd = 0;

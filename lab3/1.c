@@ -7,6 +7,7 @@
 #include <pthread.h>
 
 #define ONE_MB 1048576  
+#define LEN_BUF 10240
 
 struct Pipe {
     int fd_send;
@@ -18,14 +19,14 @@ void* handle_chat(void* data) {
     char msg_tobesend[2100000]; // 累计的信息
     char msg_tobesend2[2100000];
     memset(msg_tobesend, '\0', 2 * ONE_MB);
-    char buffer[1050000];   // 每次 recv 接受到的信息
-    memset(buffer, '\0', ONE_MB);
+    char buffer[LEN_BUF + 500];   // 每次 recv 接受到的信息
+    memset(buffer, '\0', LEN_BUF);
     char one_msg[1050000] = "Message:";  // 准备 send 的一条信息
     char one_msg2[1050000];
     ssize_t len;
     // 接受消息可能需要多次，发送消息是以回车为划分依据
     // 如果一次接收到的消息过长，会被截断，那么下一次 recv 读入的消息应该拼接到上次没传完的消息后
-    while ((len = recv(pipe->fd_send, buffer, ONE_MB, 0)) > 0) {
+    while ((len = recv(pipe->fd_send, buffer, LEN_BUF, 0)) > 0) {
         int len_mts = strlen(msg_tobesend);
         for (int i = 0; i <= strlen(buffer); i++) {
             msg_tobesend[len_mts] = buffer[i];
@@ -87,7 +88,7 @@ void* handle_chat(void* data) {
             }
             memset(msg_tobesend, '\0', 2 * ONE_MB);
         }
-        memset(buffer, '\0', ONE_MB);
+        memset(buffer, '\0', LEN_BUF);
     }
     return NULL;
 }

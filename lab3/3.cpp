@@ -10,12 +10,13 @@
 
 #define Max_Client 32
 #define ONE_MB 1048576  
+#define LEN_BUF 10240
 
 
 int used[Max_Client + 5];   // 标记这个index是否对应一个已加入的client
 int client[Max_Client + 5]; // 每个client的fd
 
-char msg_recv[ONE_MB + 500]; // recv 到的信息
+char msg_recv[LEN_BUF + 500]; // recv 到的信息
 
 char one_msg[ONE_MB + 500];  // 准备 send 的一条信息
 char one_msg2[1050000];
@@ -32,8 +33,8 @@ void handle_chat(int index)
 
     while (true) {
         // 非阻塞 recv
-        memset(msg_recv, '\0', ONE_MB);
-        len = recv(client[index], msg_recv, ONE_MB, 0);
+        memset(msg_recv, '\0', LEN_BUF);
+        len = recv(client[index], msg_recv, LEN_BUF, 0);
         if (len <= 0) {
             // 此客户端退出
             if (first_recv) {
