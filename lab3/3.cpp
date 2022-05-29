@@ -10,7 +10,7 @@
 
 #define Max_Client 32
 #define ONE_MB 1048576  
-#define LEN_BUF 10240
+#define LEN_BUF 1024
 
 
 int used[Max_Client + 5];   // 标记这个index是否对应一个已加入的client

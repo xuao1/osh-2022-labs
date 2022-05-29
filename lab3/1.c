@@ -7,7 +7,7 @@
 #include <pthread.h>
 
 #define ONE_MB 1048576  
-#define LEN_BUF 10240
+#define LEN_BUF 1024
 
 struct Pipe {
     int fd_send;
