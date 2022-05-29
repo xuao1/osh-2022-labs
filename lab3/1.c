@@ -42,7 +42,7 @@ void* handle_chat(void* data) {
                     one_msg[j + 8] = msg_tobesend[j];
                 }
                 one_msg[j + 8] = '\0';
-                printf("%s", one_msg);
+                //printf("%s", one_msg);
                 // 发送消息，如果一次发不全，则多次发送
                 int send_len = send(pipe->fd_recv, one_msg, strlen(one_msg), 0);
                 while (send_len != strlen(one_msg)) {
