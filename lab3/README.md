@@ -4,7 +4,8 @@
 
 ## 特别说明
 
-+ 请助教使用 g++ 编译 2.cpp 和 3.cpp
++ 请助教使用 g++ 编译 2.cpp，3.cpp 和 3_epoll.cpp
++ 3.cpp 是使用 select 实现的 IO 复用聊天室，3_epoll.cpp 是使用 epoll 实现的聊天室
 
 
 
@@ -26,3 +27,4 @@
 ### 基于 IO 复用的多人聊天室
 
 + SELECT：使用 select，监控各个 client 的 fd 是否有可读，如果有，那么就可以非阻塞 recv，然后直接 send
++ EPOLL：整体思想与 select 类似，epoll 的实现更高效
