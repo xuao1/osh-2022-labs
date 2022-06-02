@@ -4,7 +4,8 @@
 
 ## 特别说明
 
-+ 请助教使用 g++ 编译 2.cpp，3.cpp 和 3_epoll.cpp
++ 请助教使用 g++ 编译 2.cpp，2_queue.cpp，3.cpp 和 3_epoll.cpp
++ 2.cpp 是基础版本的多线程多人聊天室，2_queue.cpp 是引入了细粒度锁
 + 3.cpp 是使用 select 实现的 IO 复用聊天室，3_epoll.cpp 是使用 epoll 实现的聊天室
 
 

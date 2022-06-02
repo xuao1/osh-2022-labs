@@ -16,9 +16,6 @@ using namespace std;
 struct Client {
     pthread_mutex_t send_mutex = PTHREAD_MUTEX_INITIALIZER;
     pthread_cond_t  cv = PTHREAD_COND_INITIALIZER;
-    // 这个信号是处理生产者消费者问题，如果发送队列为空，那么发送进程就需要等待
-    // recv 进程向发送队列写入内容后，signal 发送进程
-    queue<char*> send_queue;
     // 对消息队列的写入和删除操作必须是互斥的，所以需要加锁
     int client_fd = 0;
 }Clients[Max_Client+5];
@@ -52,6 +49,7 @@ void* handle_recv(void* data)
         char msg_recv[LEN_BUF + 500]; // recv 到的信息
         memset(msg_recv, '\0', LEN_BUF);
         char one_msg[ONE_MB + 500] = "Message:";  // 准备 send 的一条信息
+        char one_msg2[1050000];
         while (len = recv(fd1, msg_recv, LEN_BUF, 0) > 0) { // 正常接收数据
             int len_mts = strlen(msg_tobesend);
             for (int i = 0; i <= strlen(msg_recv); i++) {
@@ -73,8 +71,21 @@ void* handle_recv(void* data)
                     for (int j = 0; j < Max_Client; j++) {
                         if (Clients[j].client_fd != 0 && Clients[j].client_fd != fd1) {
                             pthread_mutex_lock(&Clients[j].send_mutex); // 加锁
-                            Clients[j].send_queue.push(one_msg);     // 发送
-                            pthread_cond_signal(&Clients[j].cv);        // signal，生产者消费者问题
+                         
+                            int send_len = send(Clients[j].client_fd, one_msg, strlen(one_msg), 0);
+                            while (send_len != strlen(one_msg)) {
+                                memset(one_msg2, '\0', ONE_MB);
+                                for (int k = 0; k + send_len <= strlen(one_msg); k++) {
+                                    one_msg2[k] = one_msg[k + send_len];
+                                }
+                                memset(one_msg, '\0', ONE_MB);
+                                for (int k = 0; k <= strlen(one_msg2); k++) {
+                                    one_msg[k] = one_msg2[k];
+                                }
+                                send_len = send(Clients[j].client_fd, one_msg, strlen(one_msg), 0);
+                            }
+
+
                             pthread_mutex_unlock(&Clients[j].send_mutex);   // 释放
                         }
                     }
@@ -95,36 +106,6 @@ void* handle_recv(void* data)
         }
         if (len <= 0) { // recv 出错或者连接关闭
             Clients[k].client_fd = 0;
-        }
-    }
-}
-
-void* handle_send(void* data)
-{
-    struct Client* c = (struct Client*)data;
-    while (true) {
-        pthread_mutex_lock(&c->send_mutex); // 加锁
-        while (c->send_queue.empty()) {
-            pthread_cond_wait(&c->cv, &c->send_mutex);
-        } // 生产者消费者问题
-        // 继续向下进行，说明有消息待发送
-        char one_msg[1050000];  // 准备 send 的一条信息
-        char one_msg2[1050000];
-        memset(one_msg, '\0', ONE_MB);
-        strcpy(one_msg, c->send_queue.front());
-        c->send_queue.pop();
-        pthread_mutex_unlock(&c->send_mutex);
-        int send_len = send(c->client_fd, one_msg, strlen(one_msg), 0);
-        while (send_len != strlen(one_msg)) {
-            memset(one_msg2, '\0', ONE_MB);
-            for (int k = 0; k + send_len <= strlen(one_msg); k++) {
-                one_msg2[k] = one_msg[k + send_len];
-            }
-            memset(one_msg, '\0', ONE_MB);
-            for (int k = 0; k <= strlen(one_msg2); k++) {
-                one_msg[k] = one_msg2[k];
-            }
-            send_len = send(c->client_fd, one_msg, strlen(one_msg), 0);
         }
     }
 }
@@ -155,11 +136,9 @@ int main(int argc, char** argv)
     pthread_t thread_send[Max_Client];
     for (int i = 0; i < Max_Client; i++) {
         pthread_create(&thread_recv[i], NULL, handle_recv, (void *)&fd);
-        pthread_create(&thread_send[i], NULL, handle_send, (void *)&Clients[i]);
     }
     for (int i = 0; i < Max_Client; i++) {
         pthread_join(thread_recv[i], NULL);
-        pthread_join(thread_send[i], NULL);
     }
     
     return 0;
